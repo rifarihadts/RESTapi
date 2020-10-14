@@ -10,52 +10,6 @@ const userRouter = express.Router()
 userRouter.use(bodyParser.urlencoded({ extended: false }));
 userRouter.use(bodyParser.json());
 
-//add new user
-userRouter.post('/add', async (req, res) => {
-    try
-    {
-        var hashedPassword = bcrypt.hashSync(req.body.password, 8);
-
-        User.create({
-            username: req.body.username,
-            email: req.body.email,
-            password: hashedPassword
-        },
-        function (err, user) 
-        {
-            if (err) return res.status(500).send("There was a problem registering the user.")
-            // create a token
-            var token = jwt.sign({ id: user._id }, Conf.secret, 
-            {
-                expiresIn: 86400 // expires in 24 hours
-            });
-            res.status(200).send({ auth: true, token: token });
-        });
-    }
-    catch(error)
-    {
-        res.status(500).json({ error: error})
-    }
-    // try {
-    //     const {username, password} = req.body
-
-    //     //digit angkat mau berapa banyak
-    //     var saltRounds = 10;
-    //     const hashedPw = await bcrypt.hash(password, saltRounds)
-
-    //     const newUser = new User({
-    //         "username":username,
-    //         "password":hashedPw
-    //     })
-
-    //     const createdUser = await newUser.save()
-
-    //     res.status(201).json(createdUser)
-    // } catch (error) {
-    //     res.status(500).json({error:error})
-    // }
-})
-
 //login
 userRouter.post('/login', async (req, res) => {
     try{
@@ -74,7 +28,11 @@ userRouter.post('/login', async (req, res) => {
             bcrypt.compare(password, currentUser[0].password).then((result) => {
                 if(result){
                     //urus token disini
-                    res.status(201).json({"status":"logged in!"});
+                    var token = jwt.sign({ id: currentUser[0]._id, jabatan:currentUser[0].jabatan }, Conf.secret, 
+                    {
+                        expiresIn: 86400 // expires in 24 hours
+                    });
+                    res.status(200).send({ "status":"logged in!",auth: true, token: token });
                 }
                 else
                     res.status(201).json({"status":"wrong password."});
@@ -83,15 +41,79 @@ userRouter.post('/login', async (req, res) => {
         else{
             res.status(401).json({"status":"user not found"});
         }
-
     }
     catch(error){
         res.status(500).json({ error: error})
     }
 })
 
+
+//add new user
+userRouter.post('/add', async (req, res) => {
+    try {
+
+        const authHeader = req.headers.authorization;
+
+        if (authHeader) {
+            const token = authHeader.split(' ')[1];
+            
+            jwt.verify(token, 'secret', (err, user) => {
+                if(user.jabatan != 2)
+                    return res.status(403).json({"message":"Anda tidak memiliki wewenang"});
+
+
+                if (err) {
+                    console.log(err)
+                    return res.sendStatus(403);
+                }
+            });
+        } else {
+            res.sendStatus(401);
+        }
+
+        const {username, email, password, jabatan} = req.body
+
+        //digit angkat mau berapa banyak
+        var saltRounds = 10;
+        const hashedPw = await bcrypt.hash(password, saltRounds)
+
+        const newUser = new User({
+            "username":username,
+            "email": email,
+            "password":hashedPw,
+            "jabatan":jabatan,
+        })
+
+        const createdUser = await newUser.save()
+
+        res.status(201).json(createdUser)
+    } catch (error) {
+        console.log(error)
+        res.status(500).json({error:error})
+    }
+})
+
 //get all user
 userRouter.get('/', async (req, res) => {
+    const authHeader = req.headers.authorization;
+
+    if (authHeader) {
+        const token = authHeader.split(' ')[1];
+        
+        jwt.verify(token, 'secret', (err, user) => {
+            if(user.jabatan != 2)
+                return res.status(403).json({"message":"Anda tidak memiliki wewenang"});
+
+
+            if (err) {
+                console.log(err)
+                return res.sendStatus(403);
+            }
+        });
+    } else {
+        res.sendStatus(401);
+    }
+
     const user = await User.find({})
 
     if(user && user.length !== 0) {
@@ -105,6 +127,25 @@ userRouter.get('/', async (req, res) => {
 
 //get user by id
 userRouter.get('/:id', async (req, res) => {
+    const authHeader = req.headers.authorization;
+
+    if (authHeader) {
+        const token = authHeader.split(' ')[1];
+        
+        jwt.verify(token, 'secret', (err, user) => {
+            if(user.jabatan != 2)
+                return res.status(403).json({"message":"Anda tidak memiliki wewenang"});
+
+
+            if (err) {
+                console.log(err)
+                return res.sendStatus(403);
+            }
+        });
+    } else {
+        res.sendStatus(401);
+    }
+
     try{
         const user = await new Promise((resolve, reject) =>{
             User.findById(req.params.id, (err, user) => {
@@ -122,6 +163,25 @@ userRouter.get('/:id', async (req, res) => {
 
 //update user username and password
 userRouter.patch('/:id', async (req, res) => {
+    const authHeader = req.headers.authorization;
+
+    if (authHeader) {
+        const token = authHeader.split(' ')[1];
+        
+        jwt.verify(token, 'secret', (err, user) => {
+            if(user.jabatan != 2)
+                return res.status(403).json({"message":"Anda tidak memiliki wewenang"});
+
+
+            if (err) {
+                console.log(err)
+                return res.sendStatus(403);
+            }
+        });
+    } else {
+        res.sendStatus(401);
+    }
+
     var ObjectId = require('mongodb').ObjectID
     try{
         const user = await new Promise((resolve, reject) =>{
@@ -151,6 +211,25 @@ userRouter.patch('/:id', async (req, res) => {
 })
 
 userRouter.delete('/:id', async (req, res) => {
+    const authHeader = req.headers.authorization;
+
+    if (authHeader) {
+        const token = authHeader.split(' ')[1];
+        
+        jwt.verify(token, 'secret', (err, user) => {
+            if(user.jabatan != 2)
+                return res.status(403).json({"message":"Anda tidak memiliki wewenang"});
+
+
+            if (err) {
+                console.log(err)
+                return res.sendStatus(403);
+            }
+        });
+    } else {
+        res.sendStatus(401);
+    }
+
    try{
         const user = await new Promise((resolve, reject) =>{
             User.findById(req.params.id, (err, user) => {

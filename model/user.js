@@ -8,6 +8,14 @@ const userSchema = mongoose.Schema({
     password: {
         type: String,
         required: true
+    },
+    email: {
+        type: String,
+        required: true
+    },
+    jabatan: {
+        type: Number,
+        required: true
     }
 }, {timestamps: true})
 

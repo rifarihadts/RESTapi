@@ -2,10 +2,13 @@ const express = require('express')
 const morgan = require('morgan')
 const mongoose = require('mongoose')
 const dotenv = require('dotenv')
+const jwt = require('jsonwebtoken')
+const Conf = require('./config')
 dotenv.config()
 
 const router = require('./router')
 const userRouter = require('./controllers/UserController')
+const kasirRouter = require('./controllers/kasirController')
 
 const app = express();
 
@@ -32,6 +35,29 @@ const connectDB = async () => {
 
 connectDB()
 
+
+const authenticateBOS = (req, res, next) => {
+    const authHeader = req.headers.authorization;
+
+    if (authHeader) {
+        const token = authHeader.split(' ')[1];
+        
+        jwt.verify(token, 'secret', (err, user) => {
+            if(user.jabatan != 1)
+            console.log(user.jabatan)
+
+            if (err) {
+                console.log(err)
+                return res.sendStatus(403);
+            }
+
+            next();
+        });
+    } else {
+        res.sendStatus(401);
+    }
+};
+
 //middleware
 app.use(morgan('dev'))
 
@@ -43,8 +69,10 @@ app.get('/',(req, res) => {
     });
 })
 
-app.use('/api', router)
+// app.use('/api', router)
 app.use('/api/user', userRouter)
+app.use('/api/kasir', kasirRouter)
+
 
 const PORT = process.env.PORT || '3000'
 
