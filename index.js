@@ -5,6 +5,7 @@ const dotenv = require('dotenv')
 dotenv.config()
 
 const router = require('./router')
+const userRouter = require('./controllers/UserController')
 
 const app = express();
 
@@ -43,6 +44,7 @@ app.get('/',(req, res) => {
 })
 
 app.use('/api', router)
+app.use('/api/user', userRouter)
 
 const PORT = process.env.PORT || '3000'
 
