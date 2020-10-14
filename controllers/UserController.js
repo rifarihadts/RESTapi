@@ -1,29 +1,59 @@
 const User = require('../model/user')
 const express = require('express')
 const bcrypt = require('bcrypt')
+const jwt = require('jsonwebtoken')
+const Conf = require('../config')
+const bodyParser = require('body-parser')
 
 const userRouter = express.Router()
 
+userRouter.use(bodyParser.urlencoded({ extended: false }));
+userRouter.use(bodyParser.json());
+
 //add new user
 userRouter.post('/add', async (req, res) => {
-    try {
-        const {username, password} = req.body
+    try
+    {
+        var hashedPassword = bcrypt.hashSync(req.body.password, 8);
 
-        //digit angkat mau berapa banyak
-        var saltRounds = 10;
-        const hashedPw = await bcrypt.hash(password, saltRounds)
-
-        const newUser = new User({
-            "username":username,
-            "password":hashedPw
-        })
-
-        const createdUser = await newUser.save()
-
-        res.status(201).json(createdUser)
-    } catch (error) {
-        res.status(500).json({error:error})
+        User.create({
+            username: req.body.username,
+            email: req.body.email,
+            password: hashedPassword
+        },
+        function (err, user) 
+        {
+            if (err) return res.status(500).send("There was a problem registering the user.")
+            // create a token
+            var token = jwt.sign({ id: user._id }, Conf.secret, 
+            {
+                expiresIn: 86400 // expires in 24 hours
+            });
+            res.status(200).send({ auth: true, token: token });
+        });
     }
+    catch(error)
+    {
+        res.status(500).json({ error: error})
+    }
+    // try {
+    //     const {username, password} = req.body
+
+    //     //digit angkat mau berapa banyak
+    //     var saltRounds = 10;
+    //     const hashedPw = await bcrypt.hash(password, saltRounds)
+
+    //     const newUser = new User({
+    //         "username":username,
+    //         "password":hashedPw
+    //     })
+
+    //     const createdUser = await newUser.save()
+
+    //     res.status(201).json(createdUser)
+    // } catch (error) {
+    //     res.status(500).json({error:error})
+    // }
 })
 
 //login
